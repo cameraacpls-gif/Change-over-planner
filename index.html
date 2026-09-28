@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d3b5a">
+<link rel="icon" href="icon-192.png">
+<title>Changeover Planner</title>
+<style>
+:root{
+  --bg:#E6EAEE;--card:#fff;--ink:#13212E;--mute:#5B6B7A;--line:#C5CDD5;
+  --steel:#1D3B5A;--plate:#2A4A6B;--accent:#F0AB00;
+  --amber:#B87800;--amberbg:#FFEFC2;--red:#C8342B;--redbg:#FBDDD9;--green:#17784A;--greenbg:#D6EFE1;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0E151C;--card:#17222C;--ink:#E8EEF3;--mute:#93A3B2;--line:#2B3B49;--steel:#0A1219;
+    --amber:#F0B429;--amberbg:#3A2D08;--red:#FF7A70;--redbg:#43181A;--green:#4CD08C;--greenbg:#113626}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.num{font-family:"Bahnschrift","Roboto Condensed","Arial Narrow",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+
+header{background:var(--steel);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;position:sticky;top:0;z-index:5}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.shift{font-size:22px;font-weight:700;line-height:1.1}
+.range{font-size:13px;opacity:.8}
+.pill{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;border-radius:999px;padding:7px 12px;font-size:12px;white-space:nowrap}
+.pill.ok{border-color:#4CD08C}.pill.err,.pill.signin{border-color:#FFB4AB}
+.stats{display:flex;gap:6px;margin-top:8px}
+.stat{flex:1;background:rgba(255,255,255,.1);border-radius:6px;padding:4px 8px;min-width:0}
+.stat b{display:block;font-size:20px;line-height:1.15}
+.stat span{font-size:11px;opacity:.85}
+.stat.hot b{color:#FFA39A}
+
+main{padding:0 10px 92px}
+.grid{display:grid;grid-template-columns:52px repeat(3,1fr);gap:6px;margin-bottom:6px}
+.colhead{position:sticky;top:var(--hh,120px);z-index:4;background:var(--bg);padding-top:6px;margin-bottom:0}
+.colhead span{font-size:11px;font-weight:600;text-align:center;color:var(--mute);line-height:1.15;padding:4px 0 6px}
+.hall{margin:14px 2px 6px;font-weight:700;font-size:13px;color:var(--mute)}
+.mtag{background:var(--plate);color:#fff;border-radius:6px;display:grid;place-items:center;font-size:22px;font-weight:700}
+.cell{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;min-height:56px;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.cell .t{font-size:17px;font-weight:700}
+.cell .s{font-size:11px;opacity:.85}
+.cell.empty .plus{font-size:26px;color:var(--mute);opacity:.55;line-height:1}
+.cell.sched{background:var(--amberbg);border-color:var(--amber)}
+.cell.sched .s{color:var(--amber);opacity:1}
+.cell.over{background:var(--redbg);border-color:var(--red);animation:pulse 1.6s ease-in-out infinite}
+.cell.over .s{color:var(--red);opacity:1;font-weight:600}
+.cell.done{background:var(--greenbg);border-color:var(--green)}
+.cell.done .t,.cell.done .s{color:var(--green);opacity:1}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px rgba(200,52,43,.35)}}
+@media (prefers-reduced-motion:reduce){.cell.over{animation:none}.sheet{transition:none}}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
+nav button{flex:1;padding:14px 0;background:none;border:0;font-weight:600;color:var(--mute)}
+nav button.on{color:var(--ink);box-shadow:inset 0 3px 0 var(--accent)}
+
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));z-index:21;transform:translateY(100%);transition:transform .18s ease-out;max-height:90vh;overflow:auto}
+.sheet.open{transform:none}
+.sheet h3{margin:0 0 4px;font-size:22px}
+.hint{font-size:12px;color:var(--mute);margin:4px 0 10px}
+.btn{border:0;border-radius:10px;padding:14px;font-weight:700;width:100%;margin-top:8px}
+.btn.go{background:var(--green);color:#fff}
+.btn.pri{background:var(--plate);color:#fff}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.danger{background:none;color:var(--red)}
+.row2{display:flex;gap:8px;align-items:stretch}.row2 input{flex:1}.row2 .btn{width:auto;margin:0;padding:0 16px}
+input[type=time],input[type=text],input[type=number]{font:inherit;padding:12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+input[type=time]{font-size:26px;font-weight:700}
+
+.alarm{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);color:#fff;overflow:auto}
+.alarm.due{background:#B3261E}.alarm.lead{background:#1D3B5A}
+.ah{font-size:26px;font-weight:800;margin-bottom:4px}
+.ai{background:rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.ai .an{font-size:30px;font-weight:700;line-height:1.1}
+.ai .btn{width:auto;margin:0;padding:14px 18px}
+.alarm .later{background:#fff;color:#13212E;margin-top:auto}
+
+.card{background:var(--card);border-radius:10px;padding:4px 14px 14px;margin-top:10px}
+.card h3{margin:14px 0 4px;font-size:15px}
+.field{margin:10px 0}
+.field label{font-size:13px;font-weight:600;display:block;margin-bottom:4px}
+.split{display:flex;gap:10px}.split .field{flex:1}
+.switch{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+.switch input{width:22px;height:22px}
+.mini{font-size:13px}
+
+.stats2{display:flex;gap:6px;margin:10px 0}
+.stats2 div{flex:1;background:var(--card);border-radius:8px;padding:6px 8px}
+.stats2 b{display:block;font-size:20px}.stats2 span{font-size:11px;color:var(--mute)}
+.seg{display:flex;gap:6px;margin-top:10px}
+.seg button{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-weight:600;font-size:13px}
+.seg button.on{background:var(--plate);color:#fff;border-color:var(--plate)}
+.logrow{background:var(--card);border-radius:8px;padding:10px 12px;margin:6px 0;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.logrow .m{font-weight:700}.logrow .d{font-size:12px;color:var(--mute)}
+.badge{font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap}
+.badge.done{background:var(--greenbg);color:var(--green)}.badge.over{background:var(--redbg);color:var(--red)}.badge.open{background:var(--amberbg);color:var(--amber)}
+.empty-note{text-align:center;color:var(--mute);padding:30px 0}
+.toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:9px 16px;border-radius:20px;z-index:40;font-size:14px;display:none;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <div class="top">
+    <div><div class="shift num" id="shiftName"></div><div class="range" id="shiftRange"></div></div>
+    <button class="pill" id="pill"></button>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+<main id="main"></main>
+<nav>
+  <button data-tab="board" class="on">Board</button>
+  <button data-tab="log">Log</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="alarm" id="alarm" role="alertdialog" aria-live="assertive"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- constants & state ---------- */
+const HALL1=[18,19,20,21,22,23,24,25], HALL2=[53,54,55,56,57,58,59,60];
+const MACHINES=[...HALL1,...HALL2];
+const TYPES=[
+  {k:'end',   label:'End challenge test'},
+  {k:'start', label:'Start challenge test'},
+  {k:'batch', label:'Batch change'}
+];
+const DEFAULTS={supervisor:'',clientId:'',clientSecret:'',lead:15,repeat:10,sound:true,keepAwake:true};
+const FILE_NAME='changeover_schedule.json';
+const ON_TIME_MIN=10;
+
+const store={
+  get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v===null||v===undefined?d:v}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+let settings={...DEFAULTS,...store.get('co_settings',{})};
+let db=store.get('co_db',{version:1,tasks:[]}); if(!db||!Array.isArray(db.tasks)) db={version:1,tasks:[]};
+let alarmState=store.get('co_alarm',{});
+const alarmQueue=new Map();
+let tab='board', logRange='shift', sheetCtx={}, tickN=0;
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const hm=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmtFull=d=>pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+hm(d);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const typeLabel=k=>(TYPES.find(t=>t.k===k)||{}).label||k;
+const durText=m=>m<60?m+'m':Math.floor(m/60)+'h '+(m%60)+'m';
+function toast(msg){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',2600)}
+
+/* ---------- shifts ---------- */
+function shiftOf(d){
+  const h=d.getHours(); const s=new Date(d); s.setMinutes(0,0,0); let letter;
+  if(h>=7&&h<15){letter='A';s.setHours(7)}
+  else if(h>=15&&h<23){letter='B';s.setHours(15)}
+  else{letter='C'; if(h<7) s.setDate(s.getDate()-1); s.setHours(23)}
+  const e=new Date(s); e.setHours(s.getHours()+8);
+  return {letter,start:s,end:e,key:ymd(s)+letter};
+}
+// Turn a clock time into the right date: inside the current shift if possible, else next occurrence.
+function computeAt(hhmm){
+  const [H,M]=hhmm.split(':').map(Number); const now=new Date(), sh=shiftOf(now);
+  for(const off of [0,-1,1]){
+    const d=new Date(now); d.setDate(d.getDate()+off); d.setHours(H,M,0,0);
+    if(d>=sh.start&&d<sh.end) return d;
+  }
+  const d=new Date(now); d.setHours(H,M,0,0); if(d<=now) d.setDate(d.getDate()+1); return d;
+}
+const inCurShift=d=>{const s=shiftOf(new Date());return d>=s.start&&d<s.end};
+const fmtAt=iso=>{const d=new Date(iso);return inCurShift(d)?hm(d):fmtFull(d)};
+
+/* ---------- data ---------- */
+const live=()=>db.tasks.filter(t=>!t.deleted);
+function cellTask(m,k){
+  const list=live().filter(t=>t.machine===m&&t.type===k);
+  const pend=list.filter(t=>t.status==='pending').sort((a,b)=>b.updatedAt-a.updatedAt)[0];
+  if(pend) return pend;
+  const cur=shiftOf(new Date()).key;
+  return list.filter(t=>t.status==='done'&&t.doneShift===cur).sort((a,b)=>new Date(b.doneAt)-new Date(a.doneAt))[0]||null;
+}
+function saveLocal(){store.set('co_db',db);store.set('co_alarm',alarmState)}
+function commit(){saveLocal();pruneQueue();render();scheduleSync();rescheduleAll()}
+function addTask(machine,type,hhmm){
+  const at=computeAt(hhmm), now=Date.now();
+  db.tasks.push({id:uid(),machine,type,at:at.toISOString(),shift:shiftOf(new Date()).key,
+    createdBy:settings.supervisor||'',createdAt:new Date().toISOString(),status:'pending',
+    doneAt:null,doneBy:null,doneShift:null,deleted:false,updatedAt:now});
+  commit();
+}
+function findTask(id){return db.tasks.find(t=>t.id===id)}
+function completeTask(id){
+  const t=findTask(id); if(!t)return;
+  t.status='done';t.doneAt=new Date().toISOString();t.doneBy=settings.supervisor||'';t.doneShift=shiftOf(new Date()).key;t.updatedAt=Date.now();
+  delete alarmState[id];alarmQueue.delete(id);commit();
+}
+function undoComplete(id){const t=findTask(id);if(!t)return;t.status='pending';t.doneAt=null;t.doneBy=null;t.doneShift=null;t.updatedAt=Date.now();delete alarmState[id];commit()}
+function changeTime(id,hhmm){const t=findTask(id);if(!t)return;t.at=computeAt(hhmm).toISOString();t.updatedAt=Date.now();delete alarmState[id];alarmQueue.delete(id);commit()}
+function removeTask(id){const t=findTask(id);if(!t)return;t.deleted=true;t.updatedAt=Date.now();delete alarmState[id];alarmQueue.delete(id);commit()}
+function merge(a,b){
+  const m=new Map();
+  for(const t of [...(b.tasks||[]),...a.tasks]){const x=m.get(t.id);if(!x||t.updatedAt>x.updatedAt)m.set(t.id,t)}
+  const cutoff=Date.now()-30*864e5;
+  return {version:1,tasks:[...m.values()].filter(t=>!(t.updatedAt<cutoff&&(t.deleted||t.status==='done')))};
+}
+const norm=arr=>[...arr].sort((x,y)=>x.id<y.id?-1:1);
+
+/* ---------- alarms ---------- */
+let actx=null, ringTimer=null, ringStop=null;
+function unlockAudio(){
+  try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch{}
+}
+document.addEventListener('pointerdown',unlockAudio);
+function beep(freq,dur,when){
+  const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=freq;o.connect(g);g.connect(actx.destination);
+  const t0=actx.currentTime+when;g.gain.setValueAtTime(0.25,t0);g.gain.setValueAtTime(0,t0+dur);o.start(t0);o.stop(t0+dur+0.02);
+}
+function startRing(loud){
+  stopRing();
+  if(!settings.sound||!actx) return;
+  const pattern=()=>{beep(988,.18,0);beep(1319,.18,.25);beep(988,.18,.5);beep(1319,.18,.75);if(navigator.vibrate)navigator.vibrate([300,150,300,150,300])};
+  pattern();
+  if(loud){ringTimer=setInterval(pattern,1800);ringStop=setTimeout(stopRing,60000)}
+}
+function stopRing(){clearInterval(ringTimer);clearTimeout(ringStop);ringTimer=null;if(navigator.vibrate)navigator.vibrate(0)}
+function notify(){} // native alarms below replace web notifications
+
+/* ---------- native alarms (Android, work with app closed) ---------- */
+const NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const LN=NATIVE?Capacitor.Plugins.LocalNotifications:null;
+const CH='changeover_alarm', SLOTS=18; // 18 repeats per task = 3 h at 10 min, refilled every time the app opens
+let nativeReady=false, resTimer=null, permInfo={display:'unknown',exact:'unknown'};
+const nid=(taskId,k)=>{let h=0;for(const c of taskId)h=(h*31+c.charCodeAt(0))>>>0;return (h%30000000)*32+k};
+const permText=()=>NATIVE?('Alarms: '+permInfo.display+' · Exact timing: '+permInfo.exact):('Notifications: '+('Notification' in window?Notification.permission:'unsupported'));
+async function ensurePerms(ask){
+  if(!LN)return;
+  try{
+    let p=await LN.checkPermissions();
+    if(p.display!=='granted'&&ask)p=await LN.requestPermissions();
+    permInfo.display=p.display;
+    try{
+      let x=await LN.checkExactNotificationSetting();
+      if(x.exact_alarm!=='granted'&&ask)x=await LN.changeExactNotificationSetting();
+      permInfo.exact=x.exact_alarm;
+    }catch{permInfo.exact='granted'}
+  }catch(e){console.warn(e)}
+}
+async function nativeInit(){
+  if(!LN)return;
+  try{
+    await LN.createChannel({id:CH,name:'Changeover alarms',description:'Changeover reminders and repeats',importance:5,visibility:1,vibration:true,lights:true});
+    await LN.registerActionTypes({types:[{id:'ALARM',actions:[{id:'done',title:'Completed'}]}]});
+    LN.addListener('localNotificationActionPerformed',ev=>{
+      const id=ev.notification&&ev.notification.extra&&ev.notification.extra.taskId;
+      if(ev.actionId==='done'&&id&&findTask(id))completeTask(id);
+    });
+    nativeReady=true;await ensurePerms(false);doReschedule();
+  }catch(e){console.warn(e)}
+}
+function rescheduleAll(){clearTimeout(resTimer);resTimer=setTimeout(doReschedule,400)}
+async function doReschedule(){
+  if(!LN||!nativeReady)return;
+  try{
+    const pend=await LN.getPending();
+    if(pend.notifications.length)await LN.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
+    const now=Date.now(), rep=settings.repeat*60000, lead=settings.lead*60000, list=[], open=new Set();
+    for(const t of live()){
+      if(t.status!=='pending')continue;
+      open.add(t.id);
+      const at=new Date(t.at).getTime(), name='HCM '+t.machine+' · '+typeLabel(t.type);
+      if(at-lead>now+5000)list.push({id:nid(t.id,0),title:'Coming up: '+name,body:'Starts '+hm(new Date(at))+' (in '+settings.lead+' min)',schedule:{at:new Date(at-lead),allowWhileIdle:true},channelId:CH,actionTypeId:'ALARM',extra:{taskId:t.id}});
+      let k=Math.max(0,Math.ceil((now+5000-at)/rep));
+      for(let i=0;i<SLOTS;i++,k++)list.push({id:nid(t.id,1+i),title:'Changeover due: '+name,body:'Scheduled '+hm(new Date(at))+'. Tap Completed when done.',schedule:{at:new Date(at+k*rep),allowWhileIdle:true},channelId:CH,actionTypeId:'ALARM',autoCancel:false,extra:{taskId:t.id}});
+    }
+    list.sort((a,b)=>a.schedule.at-b.schedule.at);
+    if(list.length)await LN.schedule({notifications:list.slice(0,400)});
+    const del=await LN.getDeliveredNotifications();
+    const stale=(del.notifications||[]).filter(n=>!open.has(((n.extra||n.data)||{}).taskId));
+    if(stale.length)await LN.removeDeliveredNotifications({notifications:stale});
+  }catch(e){console.warn('reschedule',e)}
+}
+function openUrl(url){const B=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Browser;if(B)B.open({url});else window.open(url,'_blank')}
+function tick(){
+  const now=Date.now(), due=[];
+  for(const t of live()){
+    if(t.status!=='pending')continue;
+    const at=new Date(t.at).getTime(), st=alarmState[t.id]||(alarmState[t.id]={});
+    if(now>=at){ if(!st.nextAt||now>=st.nextAt){st.nextAt=now+settings.repeat*60000;due.push({t,kind:'alarm'})} }
+    else if(now>=at-settings.lead*60000&&!st.leadDone){st.leadDone=true;due.push({t,kind:'lead'})}
+  }
+  if(due.length){store.set('co_alarm',alarmState);raise(due)}
+  tickN++;
+  if(tickN%4===0&&!$('#sheet').classList.contains('open')&&!alarmQueue.size){renderHeader();if(tab==='board')renderMain()}
+  if(alarmQueue.size)renderAlarm();
+}
+function raise(due){
+  for(const d of due){
+    alarmQueue.set(d.t.id,d.kind);
+    const at=new Date(d.t.at), name='HCM '+d.t.machine+' · '+typeLabel(d.t.type);
+    if(d.kind==='alarm') notify('Changeover due: '+name,'Scheduled '+hm(at)+'. Open the app and tap Completed.',d.t.id);
+    else notify('In '+Math.max(0,Math.round((at-Date.now())/60000))+' min: '+name,'Scheduled '+hm(at),d.t.id);
+  }
+  unlockAudio();renderAlarm();startRing(due.some(d=>d.kind==='alarm'));
+}
+function pruneQueue(){
+  let ch=false;
+  for(const id of [...alarmQueue.keys()]){const t=findTask(id);if(!t||t.deleted||t.status!=='pending'){alarmQueue.delete(id);ch=true}}
+  if(ch)renderAlarm();
+}
+function renderAlarm(){
+  const el=$('#alarm');
+  const items=[...alarmQueue.entries()].map(([id,kind])=>({t:findTask(id),kind})).filter(i=>i.t&&i.t.status==='pending'&&!i.t.deleted);
+  if(!items.length){alarmQueue.clear();el.style.display='none';stopRing();return}
+  const hasAlarm=items.some(i=>i.kind==='alarm'), now=Date.now();
+  el.className='alarm '+(hasAlarm?'due':'lead');el.style.display='flex';
+  el.innerHTML=`<div class="ah">${hasAlarm?'Changeover due':'Coming up'}</div>`+
+    items.map(i=>{
+      const mins=Math.round((new Date(i.t.at)-now)/60000);
+      const rel=mins>0?'in '+durText(mins):mins===0?'now':'late '+durText(-mins);
+      return `<div class="ai"><div><div class="an num">HCM ${i.t.machine}</div><div>${esc(typeLabel(i.t.type))}</div><div style="font-size:13px;opacity:.9">${hm(new Date(i.t.at))} · ${rel}</div></div>`+
+        (i.kind==='alarm'?`<button class="btn go" data-done="${i.t.id}">Completed</button>`:'')+`</div>`;
+    }).join('')+
+    `<button class="btn later" data-later>${hasAlarm?'Remind me in '+settings.repeat+' min':'OK'}</button>`;
+}
+$('#alarm').addEventListener('click',e=>{
+  const d=e.target.closest('[data-done]');
+  if(d){completeTask(d.dataset.done);return}
+  if(e.target.closest('[data-later]')){alarmQueue.clear();renderAlarm()}
+});
+
+/* ---------- rendering ---------- */
+function counts(){
+  const cur=shiftOf(new Date()).key, now=Date.now(); let over=0,up=0,done=0,carried=0;
+  for(const m of MACHINES)for(const ty of TYPES){
+    const t=cellTask(m,ty.k); if(!t)continue;
+    if(t.status==='done')done++;
+    else{ if(new Date(t.at)<=now)over++;else up++; if(t.shift!==cur)carried++; }
+  }
+  return {over,up,done,carried};
+}
+function renderHeader(){
+  const now=new Date(), sh=shiftOf(now), c=counts();
+  $('#shiftName').textContent='Shift '+sh.letter;
+  $('#shiftRange').textContent=hm(sh.start)+'–'+hm(sh.end)+' · '+now.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+  $('#stats').innerHTML=
+    `<div class="stat ${c.over?'hot':''}"><b class="num">${c.over}</b><span>Overdue</span></div>`+
+    `<div class="stat"><b class="num">${c.up}</b><span>Upcoming</span></div>`+
+    `<div class="stat"><b class="num">${c.done}</b><span>Done</span></div>`+
+    `<div class="stat"><b class="num">${c.carried}</b><span>Carried</span></div>`;
+  const s=syncInfo, p=$('#pill');
+  p.className='pill '+s.state;
+  p.textContent={off:'Drive: set up',signin:'Drive: sign in',syncing:'Syncing…',ok:'Synced '+(s.time?hm(s.time):''),err:'Sync failed · retry'}[s.state];
+  document.documentElement.style.setProperty('--hh',$('#hdr').offsetHeight+'px');
+}
+function cellHTML(m,k){
+  const t=cellTask(m,k), lab=`HCM ${m} ${typeLabel(k)}`;
+  if(!t) return `<button class="cell empty" data-m="${m}" data-k="${k}" aria-label="${lab}: set time"><span class="plus">+</span></button>`;
+  if(t.status==='done'){
+    const diff=Math.round((new Date(t.doneAt)-new Date(t.at))/60000);
+    return `<button class="cell done" data-id="${t.id}" aria-label="${lab}: done"><span class="t num">✓ ${hm(new Date(t.doneAt))}</span><span class="s">${diff>ON_TIME_MIN?'+'+durText(diff):'on time'}</span></button>`;
+  }
+  const mins=Math.round((new Date(t.at)-Date.now())/60000), over=mins<=0, carried=t.shift!==shiftOf(new Date()).key;
+  const rel=mins>0?'in '+durText(mins):mins===0?'now':'late '+durText(-mins);
+  return `<button class="cell ${over?'over':'sched'}" data-id="${t.id}" aria-label="${lab}: ${rel}"><span class="t num">${fmtAt(t.at)}</span><span class="s">${carried?'↪ ':''}${rel}</span></button>`;
+}
+function renderBoard(){
+  const hall=(title,list)=>`<div class="hall">${title}</div>`+list.map(m=>
+    `<div class="grid"><div class="mtag num">${m}</div>${TYPES.map(t=>cellHTML(m,t.k)).join('')}</div>`).join('');
+  return `<div class="grid colhead"><span></span>${TYPES.map(t=>`<span>${t.label}</span>`).join('')}</div>`+
+    hall('Hall 1 · HCM 18–25',HALL1)+hall('Hall 2 · HCM 53–60',HALL2);
+}
+function renderLog(){
+  const cur=shiftOf(new Date()).key, now=Date.now();
+  let list=live();
+  if(logRange==='shift') list=list.filter(t=>t.shift===cur||t.doneShift===cur||t.status==='pending');
+  else{const span=logRange==='24h'?864e5:7*864e5;list=list.filter(t=>t.status==='pending'||new Date(t.at).getTime()>now-span)}
+  list.sort((a,b)=>new Date(b.at)-new Date(a.at));
+  const total=list.length, done=list.filter(t=>t.status==='done').length;
+  const ontime=list.filter(t=>t.status==='done'&&(new Date(t.doneAt)-new Date(t.at))<=ON_TIME_MIN*60000).length;
+  const rows=list.map(t=>{
+    const at=new Date(t.at); let badge;
+    if(t.status==='done'){const diff=Math.round((new Date(t.doneAt)-at)/60000);badge=`<span class="badge done">Done ${hm(new Date(t.doneAt))}${diff>ON_TIME_MIN?' (+'+durText(diff)+')':''}</span>`}
+    else badge=at<=now?`<span class="badge over">Open · late</span>`:`<span class="badge open">Open</span>`;
+    return `<div class="logrow"><div><div class="m num">HCM ${t.machine} · ${esc(typeLabel(t.type))}</div><div class="d">Set ${fmtFull(at)} · Shift ${t.shift.slice(-1)}${t.createdBy?' · '+esc(t.createdBy):''}${t.doneBy?' · done by '+esc(t.doneBy):''}</div></div>${badge}</div>`;
+  }).join('')||'<div class="empty-note">Nothing scheduled in this range.</div>';
+  const seg=(k,l)=>`<button data-range="${k}" class="${logRange===k?'on':''}">${l}</button>`;
+  return `<div class="seg">${seg('shift','This shift')}${seg('24h','24 hours')}${seg('7d','7 days')}</div>`+
+    `<div class="stats2"><div><b class="num">${total}</b><span>Scheduled</span></div><div><b class="num">${done}</b><span>Completed</span></div><div><b class="num">${ontime}</b><span>Within ${ON_TIME_MIN} min</span></div><div><b class="num">${total-done}</b><span>Open</span></div></div>`+rows;
+}
+function renderSettings(){
+  const np='Notification' in window?Notification.permission:'unsupported';
+  const s=settings;
+  return `<div class="card">
+  <h3>Your name</h3>
+  <div class="field"><input type="text" data-set="supervisor" value="${esc(s.supervisor)}" placeholder="Shown in the log"></div>
+  <h3>Alarms</h3>
+  <div class="split">
+    <div class="field"><label>Heads-up before (min)</label><input type="number" inputmode="numeric" min="1" data-set="lead" value="${s.lead}"></div>
+    <div class="field"><label>Repeat every (min)</label><input type="number" inputmode="numeric" min="1" data-set="repeat" value="${s.repeat}"></div>
+  </div>
+  <label class="switch"><span>Sound and vibration</span><input type="checkbox" data-set="sound" ${s.sound?'checked':''}></label>
+  <label class="switch"><span>Keep screen on while open</span><input type="checkbox" data-set="keepAwake" ${s.keepAwake?'checked':''}></label>
+  <div class="hint">${permText()}</div>
+  <div class="row2"><button class="btn ghost" data-act="notif" style="margin:0">Allow alarms</button><button class="btn ghost" data-act="test" style="margin:0">Test alarm</button></div>
+  <h3 style="margin-top:20px">Google Drive</h3>
+  <div class="field"><label>Client ID</label><input type="text" data-set="clientId" value="${esc(s.clientId)}" placeholder="xxxx.apps.googleusercontent.com" autocapitalize="off" autocomplete="off"></div>
+  <div class="field"><label>Client secret</label><input type="text" data-set="clientSecret" value="${esc(s.clientSecret)}" autocapitalize="off" autocomplete="off"></div>
+  <div class="hint">OAuth client type: TVs and Limited Input devices. Saved only on this phone. Data goes to ${FILE_NAME} in your own Drive.</div>
+  <div class="row2"><button class="btn pri" data-act="signin" style="margin:0;padding:14px">Sign in</button><button class="btn ghost" data-act="syncnow" style="margin:0;padding:14px">Sync now</button><button class="btn ghost" data-act="signout" style="margin:0;padding:14px">Sign out</button></div>
+  ${syncInfo.msg?`<div class="hint">${esc(syncInfo.msg)}</div>`:''}
+  </div>`;
+}
+function renderMain(){
+  $('#main').innerHTML=tab==='board'?renderBoard():tab==='log'?renderLog():renderSettings();
+}
+function render(){
+  renderHeader();
+  if(tab==='settings'&&document.activeElement&&document.activeElement.closest('#main'))return; // don't disturb typing
+  renderMain();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+}
+
+/* ---------- interactions ---------- */
+document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;tab=b.dataset.tab;renderHeader();renderMain();document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));window.scrollTo(0,0)});
+$('#main').addEventListener('click',e=>{
+  const c=e.target.closest('.cell');
+  if(c){unlockAudio();c.dataset.id?openTask(c.dataset.id):openNew(+c.dataset.m,c.dataset.k);return}
+  const r=e.target.closest('[data-range]');if(r){logRange=r.dataset.range;renderMain();return}
+  const a=e.target.closest('[data-act]');if(a)act(a.dataset.act);
+});
+$('#main').addEventListener('change',e=>{
+  const key=e.target.dataset.set;if(!key)return;
+  let v=e.target.type==='checkbox'?e.target.checked:e.target.value.trim();
+  if(key==='lead'||key==='repeat')v=Math.max(1,parseInt(v)||DEFAULTS[key]);
+  settings[key]=v;store.set('co_settings',settings);
+  if(key==='clientId'||key==='clientSecret'){syncInfo.state=(settings.clientId&&settings.clientSecret)?(auth.refresh?'ok':'signin'):'off';renderHeader()}
+  if(key==='lead'||key==='repeat')rescheduleAll();
+  if(key==='keepAwake')keepAwake();
+});
+async function act(a){
+  unlockAudio();
+  if(a==='notif'){
+    if(NATIVE){await ensurePerms(true);renderMain();toast('Alarm permissions: '+permInfo.display+' / exact '+permInfo.exact)}
+    else if('Notification' in window)Notification.requestPermission().then(()=>renderMain());
+  }
+  if(a==='test'){
+    if(NATIVE){await ensurePerms(true);await LN.schedule({notifications:[{id:1999999999,title:'Test alarm',body:'Alarms are working.',schedule:{at:new Date(Date.now()+10000),allowWhileIdle:true},channelId:CH}]});toast('Lock the phone now. Alarm in 10 seconds.')}
+    else{startRing(true);setTimeout(stopRing,4000);toast('Playing test alarm')}
+  }
+  if(a==='signin')signIn();
+  if(a==='syncnow')sync();
+  if(a==='signout'){auth={};store.set('co_auth',auth);syncInfo={state:(settings.clientId&&settings.clientSecret)?'signin':'off',msg:'Signed out.',time:null};renderHeader();renderMain()}
+}
+$('#pill').onclick=()=>{
+  const s=syncInfo.state;
+  if(s==='off'){tab='settings';renderHeader();renderMain();document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab))}
+  else if(auth.refresh)sync();
+  else signIn();
+};
+
+/* sheet */
+function openSheet(html){$('#sheet').innerHTML=html;$('#scrim').style.display='block';requestAnimationFrame(()=>$('#sheet').classList.add('open'))}
+function closeSheet(){$('#sheet').classList.remove('open');$('#scrim').style.display='none';sheetCtx={}}
+$('#scrim').onclick=closeSheet;
+$('#sheet').addEventListener('click',e=>{const b=e.target.closest('[data-sheet]');if(b&&sheetCtx[b.dataset.sheet])sheetCtx[b.dataset.sheet]()});
+$('#sheet').addEventListener('input',e=>{
+  if(e.target.matches('[data-tm]')&&e.target.value){
+    const d=computeAt(e.target.value), hint=$('#tmHint');
+    hint.textContent=inCurShift(d)?'':'Outside this shift. It will ring on '+fmtFull(d)+'.';
+  }
+});
+function defaultTime(){const d=new Date(Date.now()+30*60000);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);return hm(d)}
+function openNew(m,k){
+  openSheet(`<h3 class="num">HCM ${m} · ${esc(typeLabel(k))}</h3>
+    <div class="hint">When does it start? You get a heads-up ${settings.lead} min before, then an alarm at this time, repeating every ${settings.repeat} min until you tap Completed.</div>
+    <input type="time" id="tm" data-tm value="${defaultTime()}"><div class="hint" id="tmHint"></div>
+    <button class="btn go" data-sheet="save">Save and set alarm</button>
+    <button class="btn ghost" data-sheet="cancel">Cancel</button>`);
+  sheetCtx={
+    save(){const v=$('#tm').value;if(!v){toast('Pick a time');return}
+      if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();
+      unlockAudio();addTask(m,k,v);closeSheet()},
+    cancel:closeSheet
+  };
+}
+function openTask(id){
+  const t=findTask(id);if(!t)return;
+  const at=new Date(t.at), head=`<h3 class="num">HCM ${t.machine} · ${esc(typeLabel(t.type))}</h3>`;
+  if(t.status==='done'){
+    const d=new Date(t.doneAt);
+    openSheet(head+`<div class="hint">Set for ${fmtFull(at)}. Completed ${fmtFull(d)}${t.doneBy?' by '+esc(t.doneBy):''}.</div>
+      <button class="btn ghost" data-sheet="again">Schedule again</button>
+      <button class="btn ghost" data-sheet="undo">Undo completed</button>
+      <button class="btn ghost" data-sheet="close">Close</button>`);
+    sheetCtx={again(){closeSheet();openNew(t.machine,t.type)},undo(){undoComplete(id);closeSheet()},close:closeSheet};
+    return;
+  }
+  const mins=Math.round((at-Date.now())/60000), carried=t.shift!==shiftOf(new Date()).key;
+  const rel=mins>0?'in '+durText(mins):mins===0?'now':'late '+durText(-mins);
+  const hh=pad(at.getHours())+':'+pad(at.getMinutes());
+  openSheet(head+`<div class="hint">Set for ${fmtFull(at)} · ${rel}${carried?' · carried from shift '+t.shift.slice(-1):''}</div>
+    <button class="btn go" data-sheet="done" style="font-size:18px;padding:18px">Completed</button>
+    <div class="hint" style="margin-top:14px">Change time</div>
+    <div class="row2"><input type="time" id="tm" data-tm value="${hh}"><button class="btn pri" data-sheet="chg">Update</button></div><div class="hint" id="tmHint"></div>
+    <button class="btn danger" data-sheet="rm">Remove this task</button>`);
+  sheetCtx={
+    done(){completeTask(id);closeSheet()},
+    chg(){const v=$('#tm').value;if(!v)return;changeTime(id,v);closeSheet()},
+    rm(){if(confirm('Remove this task?')){removeTask(id);closeSheet()}}
+  };
+}
+
+/* ---------- keep screen awake ---------- */
+let wl=null;
+async function keepAwake(){
+  try{
+    if(wl){await wl.release();wl=null}
+    if(settings.keepAwake&&'wakeLock' in navigator&&document.visibilityState==='visible')wl=await navigator.wakeLock.request('screen');
+  }catch{}
+}
+
+/* ---------- Google Drive sync (sign-in by device code, works inside the app) ---------- */
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const FORM={'Content-Type':'application/x-www-form-urlencoded'};
+const form=o=>Object.entries(o).map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
+const authErr=m=>Object.assign(new Error(m),{auth:true});
+let auth=store.get('co_auth',{}), syncing=false, syncQueued=false, syncTimer=null;
+let syncInfo={state:(settings.clientId&&settings.clientSecret)?(auth.refresh?'syncing':'signin'):'off',msg:'',time:null};
+function setStatus(state,msg){syncInfo={state,msg:msg||'',time:state==='ok'?new Date():syncInfo.time};renderHeader();if(tab==='settings'&&!document.activeElement.closest('#main'))renderMain()}
+async function getToken(){
+  if(auth.access&&Date.now()<auth.exp-60000)return auth.access;
+  if(!auth.refresh)throw authErr('Not signed in. Tap Sign in.');
+  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:FORM,body:form({client_id:settings.clientId,client_secret:settings.clientSecret,refresh_token:auth.refresh,grant_type:'refresh_token'})});
+  const j=await r.json();
+  if(!j.access_token){if(j.error==='invalid_grant'){auth={};store.set('co_auth',auth)}throw authErr(j.error==='invalid_grant'?'Google sign-in expired. Tap Sign in.':(j.error_description||j.error||'Token refresh failed'))}
+  auth.access=j.access_token;auth.exp=Date.now()+(j.expires_in||3600)*1000;store.set('co_auth',auth);return auth.access;
+}
+async function signIn(){
+  if(!(settings.clientId&&settings.clientSecret)){tab='settings';renderHeader();renderMain();document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));toast('Add Client ID and secret first');return}
+  try{
+    const r=await fetch('https://oauth2.googleapis.com/device/code',{method:'POST',headers:FORM,body:form({client_id:settings.clientId,scope:DRIVE_SCOPE})});
+    const j=await r.json();
+    if(!j.device_code)throw new Error(j.error_description||j.error||'Could not start sign-in');
+    openSheet(`<h3>Sign in to Google</h3><div class="hint">1. Tap Open Google. 2. Enter this code and allow access. 3. Come back here.</div>
+      <div class="num" style="font-size:34px;font-weight:800;letter-spacing:2px;text-align:center;margin:10px 0">${esc(j.user_code)}</div>
+      <button class="btn pri" data-sheet="open">Open Google</button><button class="btn ghost" data-sheet="cancel">Cancel</button>
+      <div class="hint">Waiting for approval…</div>`);
+    sheetCtx={open(){openUrl(j.verification_url||'https://www.google.com/device')},cancel:closeSheet};
+    let wait=(j.interval||5)*1000; const end=Date.now()+(j.expires_in||1800)*1000;
+    while(Date.now()<end){
+      await new Promise(x=>setTimeout(x,wait));
+      if(!$('#sheet').classList.contains('open'))return; // cancelled
+      let t;
+      try{const rr=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:FORM,body:form({client_id:settings.clientId,client_secret:settings.clientSecret,device_code:j.device_code,grant_type:'urn:ietf:params:oauth:grant-type:device_code'})});t=await rr.json()}catch{continue}
+      if(t.access_token){auth={refresh:t.refresh_token||auth.refresh,access:t.access_token,exp:Date.now()+(t.expires_in||3600)*1000};store.set('co_auth',auth);closeSheet();toast('Signed in');await sync();return}
+      if(t.error==='slow_down')wait+=5000;
+      else if(t.error&&t.error!=='authorization_pending'){closeSheet();setStatus('err',t.error_description||t.error);return}
+    }
+    closeSheet();setStatus('err','Code expired. Tap Sign in again.');
+  }catch(e){closeSheet();setStatus('err',e.message)}
+}
+async function drive(path,opts={},retry=true){
+  const tok=await getToken();
+  const r=await fetch('https://www.googleapis.com'+path,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+tok}});
+  if(r.status===401&&retry){auth.access=null;return drive(path,opts,false)}
+  if(!r.ok){const txt=await r.text().catch(()=>'');throw new Error('Drive error '+r.status+(txt?': '+txt.slice(0,80):''))}
+  return r;
+}
+async function ensureFile(){
+  const cached=store.get('co_fileid',null);if(cached)return cached;
+  const q=encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
+  const j=await (await drive(`/drive/v3/files?q=${q}&orderBy=modifiedTime%20desc&fields=files(id)&pageSize=5`)).json();
+  let id=j.files&&j.files[0]&&j.files[0].id;
+  if(!id){
+    const c=await (await drive('/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FILE_NAME,mimeType:'application/json'})})).json();
+    id=c.id;
+    await drive(`/upload/drive/v3/files/${id}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(db)});
+  }
+  store.set('co_fileid',id);return id;
+}
+async function sync(){
+  if(!(settings.clientId&&settings.clientSecret&&auth.refresh))return;
+  if(syncing){syncQueued=true;return}
+  syncing=true;setStatus('syncing');
+  try{
+    const id=await ensureFile();
+    let remote={tasks:[]};
+    try{const j=await (await drive(`/drive/v3/files/${id}?alt=media`)).json();if(j&&Array.isArray(j.tasks))remote=j}catch(e){if(/ 404| 403/.test(e.message)){localStorage.removeItem('co_fileid');throw e}}
+    const before=JSON.stringify(norm(db.tasks));
+    const merged=merge(db,remote);
+    db=merged;store.set('co_db',db);
+    if(JSON.stringify(norm(merged.tasks))!==JSON.stringify(norm(remote.tasks||[]))){
+      await drive(`/upload/drive/v3/files/${id}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(merged)});
+    }
+    setStatus('ok');
+    if(before!==JSON.stringify(norm(db.tasks))){pruneQueue();render();rescheduleAll()}
+  }catch(e){console.warn(e);setStatus(e.auth?'signin':'err',e.message)}
+  finally{syncing=false;if(syncQueued){syncQueued=false;sync()}}
+}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(sync,1500)}
+
+/* ---------- boot ---------- */
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){keepAwake();tick();sync();rescheduleAll()}});
+window.addEventListener('online',()=>sync());
+render();keepAwake();nativeInit();tick();sync();
+setInterval(tick,5000);
+setInterval(()=>{if(document.visibilityState==='visible')sync()},120000);
+</script>
+</body>
+</html>

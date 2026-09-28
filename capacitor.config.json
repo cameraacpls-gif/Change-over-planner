@@ -1,0 +1,8 @@
+{
+  "appId": "com.acg.changeover",
+  "appName": "Changeover Planner",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}
